@@ -28,6 +28,7 @@ setup(
         "click >= 2.0",
         "pyfiglet >= 0.7",
         "python-dateutil",
+        "pync==1.6.1"
     ],
     py_modules=['termdown'],
     entry_points={

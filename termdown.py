@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-VERSION = "1.8.0"
-
 import curses
 from datetime import datetime, timedelta
 from math import ceil
@@ -22,6 +20,9 @@ import click
 from dateutil import tz
 from dateutil.parser import parse
 from pyfiglet import Figlet
+from pync import Notifier
+
+VERSION = "1.8.0"
 
 DEFAULT_FONT = "univers"
 TIMEDELTA_REGEX = re.compile(r'((?P<years>\d+)y ?)?'
@@ -66,13 +67,12 @@ def draw_text(stdscr, text, color=0, title=None):
     """
     y, x = stdscr.getmaxyx()
     if title:
-        longest_line = max(map(len, (title + "\n" + text).split("\n")))
-        title = pad_to_size(title, x-1, 1)
+        title = pad_to_size(title, x - 1, 1)
         if "\n" in title.rstrip("\n"):
             # hack to get more spacing between title and body for figlet
             title += "\n" * 5
-        text = title + "\n" + pad_to_size(text, x-1, len(text.split("\n")))
-    lines = pad_to_size(text, x-1, y-1).rstrip("\n").split("\n")
+        text = title + "\n" + pad_to_size(text, x - 1, len(text.split("\n")))
+    lines = pad_to_size(text, x - 1, y - 1).rstrip("\n").split("\n")
     for i, line in enumerate(lines):
         stdscr.addstr(i, 0, line, curses.color_pair(color))
     stdscr.refresh()
@@ -225,8 +225,7 @@ def parse_timedelta(deltastr):
             components[name] = int(value)
     for period, hours in (('days', 24), ('years', 8766)):
         if period in components:
-            components['hours'] = components.get('hours', 0) + \
-                                  components[period] * hours
+            components['hours'] = components.get('hours', 0) + components[period] * hours
             del components[period]
     return int(timedelta(**components).total_seconds())
 
@@ -250,6 +249,7 @@ def countdown(
         timespec=None,
         title=None,
         voice=None,
+        notify=None,
         no_seconds=False,
         no_text_magic=True,
         no_figlet=False,
@@ -344,6 +344,16 @@ def countdown(
                 with curses_lock:
                     curses.beep()
 
+                if text and notify:
+                    Notifier.notify(
+                        "Complete: {0}".format(text),
+                        title="Terminal Countdown",
+                    )
+                elif notify:
+                    Notifier.notify(
+                        "Your timer has finished.",
+                        title="Terminal Countdown"
+                    )
                 if text and not no_text_magic:
                     text = normalize_text(text)
                 if text and not no_figlet:
@@ -500,6 +510,7 @@ def input_thread_body(stdscr, input_queue, quit_event, curses_lock):
 @click.option("-v", "--voice", metavar="VOICE",
               help="Mac OS X only: spoken countdown (starting at 10), "
                    "choose VOICE from `say -v '?'`")
+@click.option("-n", "--notify", is_flag=True, help="Display OSX notification")
 @click.option("--no-figlet", default=False, is_flag=True,
               help="Don't use ASCII art for display")
 @click.option("--no-text-magic", default=False, is_flag=True,
